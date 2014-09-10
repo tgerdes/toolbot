@@ -1,8 +1,5 @@
 import asyncio
-import os
 import sys
-import tty
-import termios
 
 from toolbot.adapter import Adapter
 from toolbot.message import TextMessage
@@ -54,4 +51,3 @@ class ShellAdapter(Adapter):
 
     def run(self, loop):
         asyncio.async(self.input_loop(loop))
-
