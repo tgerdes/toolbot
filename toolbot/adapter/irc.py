@@ -1,14 +1,16 @@
 import irc3
 
 from toolbot.adapter import Adapter
-from toolbot.message import TextMessage
+from toolbot.message import (
+    TextMessage,
+    EnterMessage,
+    LeaveMessage,
+    TopicMessage)
+
 
 @irc3.plugin
 class MyPlugin:
-    requires = [
-        'irc3.plugins.core',
-        'irc3.plugins.userlist',
-    ]
+    requires = ['irc3.plugins.core', ]
 
     def __init__(self, bot):
         self.bot = bot
@@ -18,14 +20,26 @@ class MyPlugin:
         adapter = self.bot.config['adapter']
         bot = adapter.bot
         user = bot.brain.userForId(mask, name=mask.nick, room=target)
-        adapter.receive(TextMessage(user, data, "messageId"))
-
+        adapter.receive(TextMessage(user, data))
 
     @irc3.event(irc3.rfc.JOIN)
-    def welcome(self, mask, channel):
-        """Welcome people who join a channel"""
+    def join(self, mask, channel):
+        adapter = self.bot.config['adapter']
+        bot = adapter.bot
         if channel.startswith(":"):
             channel = channel[1:]
+        user = bot.brain.userForId(mask, name=mask.nick, room=channel)
+        adapter.receive(EnterMessage(user))
+
+    @irc3.event(irc3.rfc.PART)
+    def part(self, mask, channel, data):
+        adapter = self.bot.config['adapter']
+        bot = adapter.bot
+        if channel.startswith(":"):
+            channel = channel[1:]
+        user = bot.brain.userForId(mask, name=mask.nick, room=channel)
+        adapter.receive(LeaveMessage(user, data))
+
 
 class IrcAdapter(Adapter):
     def __init__(self, bot):
@@ -33,7 +47,7 @@ class IrcAdapter(Adapter):
         self.irc = irc3.IrcBot(
             nick=bot.name,
             autojoins=['#irc3'],
-            host='localhost', port=6667, ssl=False, 
+            host='localhost', port=6667, ssl=False,
             includes=[
                 "irc3.plugins.core",
                 __name__
@@ -52,12 +66,12 @@ class IrcAdapter(Adapter):
         self.send(envelope, *("{}: {}".format(envelope['user'].name, string)
                               for string in strings))
 
-    #TODO: topic
-    #def topic(self, envelope, *strings):
-    #    pass
+    # TODO: topic
+    # def topic(self, envelope, *strings):
+    #     pass
 
-    #def play(self, envelope, *strings):
-    #    pass
+    # def play(self, envelope, *strings):
+    #     pass
 
     def run(self, loop):
         self.irc.run(forever=False)
