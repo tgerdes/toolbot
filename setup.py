@@ -2,7 +2,8 @@
 
 from setuptools import setup
 
-setup(name='toolbot',
-      version='1.0',
-      packages=['toolbot'],
-     )
+setup(
+    name='toolbot',
+    version='1.0',
+    packages=['toolbot'],
+)

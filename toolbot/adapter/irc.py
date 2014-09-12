@@ -9,7 +9,7 @@ from toolbot.message import (
 
 
 @irc3.plugin
-class MyPlugin:
+class Irc3ToToolbot:
     requires = ['irc3.plugins.core', ]
 
     def __init__(self, bot):
@@ -40,6 +40,34 @@ class MyPlugin:
         user = bot.brain.userForId(mask, name=mask.nick, room=channel)
         adapter.receive(LeaveMessage(user, data))
 
+    @irc3.event(irc3.rfc.QUIT)
+    def quit(self, mask, data):
+        adapter = self.bot.config['adapter']
+        bot = adapter.bot
+        user = bot.brain.userForId(mask, name=mask.nick)
+        adapter.receive(LeaveMessage(user, data))
+
+    @irc3.event(r':(?P<mask>\S+) TOPIC (?P<channel>\S+)( :(?P<data>.*)|$)')
+    def topic(self, mask, channel, data):
+        adapter = self.bot.config['adapter']
+        bot = adapter.bot
+        user = bot.brain.userForId(mask, name=mask.nick, room=channel)
+        adapter.receive(TopicMessage(user, data))
+
+    @irc3.event(irc3.rfc.RPL_TOPIC)
+    def topic_rpl(self, srv, me, channel, data):
+        # TODO: store topic? Wait for RPL_TOPICWHOTIME? also?
+        pass
+
+    @irc3.event(r"^:(?P<srv>\S+) 353 (?P<me>\S+) (?P<mode>[@*=]) "
+                r"(?P<channel>\S+) :(?P<data>.*)")
+    def rpl_namreply(self, srv, me, mode, channel, data):
+        names = data.split(" ")
+        for name in names:
+            if name.startswith('@') or name.startswith('+'):
+                name = name[1:]
+            # TODO: store names?
+
 
 class IrcAdapter(Adapter):
     def __init__(self, bot):
@@ -48,10 +76,7 @@ class IrcAdapter(Adapter):
             nick=bot.name,
             autojoins=['#irc3'],
             host='localhost', port=6667, ssl=False,
-            includes=[
-                "irc3.plugins.core",
-                __name__
-            ],
+            includes=[__name__],
             adapter=self)
 
     def send(self, envelope, *strings):
@@ -66,15 +91,15 @@ class IrcAdapter(Adapter):
         self.send(envelope, *("{}: {}".format(envelope['user'].name, string)
                               for string in strings))
 
-    # TODO: topic
-    # def topic(self, envelope, *strings):
-    #     pass
-
-    # def play(self, envelope, *strings):
-    #     pass
+    def topic(self, envelope, *strings):
+        data = ":" + " / ".join(strings)
+        channel = envelope['room']
+        self.irc.send("TOPIC {} {}".format(channel, data))
 
     def run(self, loop):
-        self.irc.run(forever=False)
+        self.irc.create_connection()
 
     def close(self):
-        pass
+        if getattr(self.irc, 'protocol'):
+            self.irc.quit("quitting")
+            self.irc.protocol.transport.close()

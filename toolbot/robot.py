@@ -1,5 +1,6 @@
 import asyncio
 import os
+import signal
 import re
 import imp
 
@@ -24,6 +25,7 @@ class Robot:
         self.brain = Brain(self)
         self.listeners = []
         self.httpd = None
+        self.loop = None
 
     def hear(self, regex):
         def hear_decorator(callback):
@@ -101,14 +103,20 @@ class Robot:
         envelope = {"room": room}
         self.adapter.send(envelope, *strings)
 
+    def sigint(self):
+        self.adapter.close()
+        self.loop.stop()
+        exit(0)
+
     def run(self):
-        loop = asyncio.get_event_loop()
+        self.loop = asyncio.get_event_loop()
+        self.loop.add_signal_handler(signal.SIGINT, self.sigint)
 
-        self.httpd = start_server(loop)
+        self.httpd = start_server(self.loop)
         bot.load_scripts()
-        self.adapter.run(loop)
+        self.adapter.run(self.loop)
 
-        loop.run_forever()
+        self.loop.run_forever()
 
     def load_scripts(self):
         this_dir = os.path.dirname(os.path.abspath(__file__))

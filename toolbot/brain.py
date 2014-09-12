@@ -36,4 +36,16 @@ class Brain:
         else:
             user = User(id, **kwargs)
 
+        room = kwargs.get('room')
+        if room and getattr(user, 'room') != room:
+            user = User(id, **kwargs)
+            self.data['users'][id] = user
+
         return user
+
+    def userForName(self, name):
+        lower = name.lower()
+        for user in self.data['users'].values:
+            if lower == getattr(user, 'name', "").lower():
+                return user
+        return None

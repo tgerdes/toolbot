@@ -20,7 +20,7 @@ class Response:
         self.bot.adapter.reply(self.envelope, *strings)
 
     def topic(self, *strings):
-        self.bot.adapter.reply(self.envelope, *strings)
+        self.bot.adapter.topic(self.envelope, *strings)
 
     def play(self, *strings):
         self.bot.adapter.play(self.envelope, *strings)

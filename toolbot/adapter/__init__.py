@@ -6,7 +6,7 @@ class Adapter:
         pass
 
     def emote(self, envelope, *strings):
-        pass
+        self.send(envelope, *strings)
 
     def reply(self, envelope, *strings):
         pass
