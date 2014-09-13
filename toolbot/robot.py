@@ -7,7 +7,7 @@ import imp
 from toolbot.adapter.shell import ShellAdapter
 from toolbot.adapter.irc import IrcAdapter
 from toolbot.brain import Brain
-from toolbot.httpd import start_server
+import toolbot.httpd
 from toolbot.listener import Listener, TextListener
 from toolbot.message import (
     EnterMessage,
@@ -18,13 +18,12 @@ from toolbot.message import (
 
 
 class Robot:
-    def __init__(self, name="toolbot"):
+    def __init__(self, adapterClass, name="toolbot"):
         self.name = name
-        self.adapter = IrcAdapter(self)
-        #self.adapter = ShellAdapter(self)
+        self.adapter = adapterClass(self)
         self.brain = Brain(self)
         self.listeners = []
-        self.httpd = None
+        self.httpd = toolbot.httpd.app
         self.loop = None
 
     def hear(self, regex):
@@ -35,8 +34,14 @@ class Robot:
 
     def respond(self, regex):
         def respond_decorator(callback):
+            if isinstance(regex, str):
+                r = re.compile(regex)
+            else:
+                r = regex
             name = self.name
-            new_re = re.compile("^@?{}[:,]?\\s*(?:{})".format(name, regex))
+            new_re = re.compile("^@?{}[:,]?\\s*(?:{})".format(name,
+                                                              r.pattern),
+                                r.flags)
             self.listeners.append(TextListener(self, new_re, callback))
             return callback
         return respond_decorator
@@ -87,7 +92,10 @@ class Robot:
     def receive(self, message):
         results = []
         for listener in self.listeners:
-            results.append(listener(message))
+            try:
+                results.append(listener(message))
+            except Exception as e:
+                pass
             if message.done:
                 break
         if not isinstance(message, CatchAllMessage) and not any(results):
@@ -104,19 +112,22 @@ class Robot:
         self.adapter.send(envelope, *strings)
 
     def sigint(self):
-        self.adapter.close()
-        self.loop.stop()
+        self.stop()
         exit(0)
 
     def run(self):
         self.loop = asyncio.get_event_loop()
         self.loop.add_signal_handler(signal.SIGINT, self.sigint)
 
-        self.httpd = start_server(self.loop)
-        bot.load_scripts()
+        toolbot.httpd.start_server(self.loop)
+        self.load_scripts()
         self.adapter.run(self.loop)
 
         self.loop.run_forever()
+
+    def stop(self):
+        self.adapter.close()
+        self.loop.stop()
 
     def load_scripts(self):
         this_dir = os.path.dirname(os.path.abspath(__file__))
@@ -131,6 +142,8 @@ class Robot:
 
 
 if __name__ == "__main__":
-    bot = Robot()
+    adapterClass = IrcAdapter
+    adapterClass = ShellAdapter
+    bot = Robot(adapterClass)
 
     bot.run()

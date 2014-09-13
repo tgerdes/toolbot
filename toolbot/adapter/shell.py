@@ -48,6 +48,7 @@ class ShellAdapter(Adapter):
             self.receive(TextMessage(user, line, "messageId"))
 
         loop.remove_reader(fno)
+        self.bot.loop.stop()
 
     def run(self, loop):
         asyncio.async(self.input_loop(loop))
