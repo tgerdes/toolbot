@@ -1,14 +1,17 @@
+import sys
+
+
 def plugin(bot):
 
-    @bot.respond(r'(hello|hi)')
-    def say_hello(response):
-        response.emote("tips his fedora.")
+    @bot.respond(r'ping$')
+    def ping(response):
+        response.reply("PONG")
 
-    @bot.respond(r'topic')
-    def set_topic(response):
-        response.topic()
+    @bot.respond(r'echo (.*)$')
+    def decho(response):
+        response.send(response.match.group(1))
 
-    @bot.httpd.route("/foo")
-    def foo():
-        bot.messageRoom('#irc3', 'Hello')
-        return "Hello"
+    @bot.respond(r'die$')
+    def die(response):
+        response.send("Goodbye cruel world")
+        bot.stop()
